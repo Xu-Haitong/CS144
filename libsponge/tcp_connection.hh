@@ -21,6 +21,15 @@ class TCPConnection {
     //! in case the remote TCPConnection doesn't know we've received its whole stream?
     bool _linger_after_streams_finish{true};
 
+    uint64_t _time_since_last_segment_received = 0;
+    bool _syn_sent = false;   // 是否发送了 SYN
+    bool _time_wait = false;  // 是否处于 time wait（四次挥手的主动方）
+    bool _closed = false;     // 是否断开 TCP 连接
+
+    void send_RST();
+
+    void send_all_segments_with_ack_and_window();
+
   public:
     //! \name "Input" interface for the writer
     //!@{
