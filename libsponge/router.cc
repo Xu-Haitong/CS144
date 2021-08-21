@@ -29,14 +29,29 @@ void Router::add_route(const uint32_t route_prefix,
     cerr << "DEBUG: adding route " << Address::from_ipv4_numeric(route_prefix).ip() << "/" << int(prefix_length)
          << " => " << (next_hop.has_value() ? next_hop->ip() : "(direct)") << " on interface " << interface_num << "\n";
 
-    DUMMY_CODE(route_prefix, prefix_length, next_hop, interface_num);
-    // Your code here.
+    _router_table[prefix_length][route_prefix] = {next_hop, interface_num};
 }
 
 //! \param[in] dgram The datagram to be routed
 void Router::route_one_datagram(InternetDatagram &dgram) {
-    DUMMY_CODE(dgram);
-    // Your code here.
+    if (dgram.header().ttl == 1 || dgram.header().ttl == 0) {
+        // drop dgram
+        return;
+    }
+    uint32_t mask = 0xffffffff;
+    uint32_t target = dgram.header().dst;
+    for (int i = 32; i >= 0; i--) {
+        if (_router_table[i].count(target & mask)) {
+            // match
+            dgram.header().ttl -= 1;
+            auto record = _router_table[i][target & mask];
+            auto next_hop = record.next_hop;
+            Address targetAddr = Address::from_ipv4_numeric(target);
+            _interfaces[record.interface_num].send_datagram(dgram, next_hop.value_or(targetAddr));
+            return;
+        }
+        mask <<= 1;
+    }
 }
 
 void Router::route() {
